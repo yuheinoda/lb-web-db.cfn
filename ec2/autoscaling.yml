@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  WebSecurityGroup:
+    Type: String
+
+  PrivateSubnetWeb01:
+    Type: String
+
+  PrivateSubnetWeb02:
+    Type: String
+
+  PrivateSubnetWeb03:
+    Type: String
+
+  ContentsTargetGroup:
+    Type: String
+
+  ManageTargetGroup:
+    Type: String
+
+  MasterUsername:
+    Type: String
+
+  MasterUserPassword:
+    Type: String
+
+  DBHost:
+    Type: String
+
+Resources:
+  Ec2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+
+  Ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref "Ec2InstanceRole"
+
+  WebLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-web-server-template
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt "Ec2InstanceProfile.Arn"
+        ImageId: ami-01e94099fb3acf7fa
+        InstanceType: t2.micro
+        SecurityGroupIds:
+          - !Ref WebSecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub ${AWS::StackName}-Web-contents-template
+              - Key: aws-exam-resource
+                Value: true
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              Content-Type: multipart/mixed; boundary="//"
+              MIME-Version: 1.0
+
+              --//
+              Content-Type: text/cloud-config; charset="us-ascii"
+              MIME-Version: 1.0
+              Content-Transfer-Encoding: 7bit
+              Content-Disposition: attachment; filename="cloud-config.txt"
+
+              #cloud-config
+              cloud_final_modules:
+              - [scripts-user, always]
+
+              --//
+              Content-Type: text/x-shellscript; charset="us-ascii"
+              MIME-Version: 1.0
+              Content-Transfer-Encoding: 7bit
+              Content-Disposition: attachment; filename="userdata.txt"
+              #!/bin/bash
+              /home/ec2-user/initialize.sh ${dbhost} ${dbuser} ${dbpass} 00226
+              rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a stop
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${CloudWatchAgentParameter} -s
+            - {
+                dbhost: !Ref DBHost,
+                dbuser: !Ref MasterUsername,
+                dbpass: !Ref MasterUserPassword,
+              }
+
+  WebContentsASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${AWS::StackName}-WebContentsAutoScalingGroup
+      DesiredCapacity: 2
+      HealthCheckType: ELB
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebLaunchTemplate
+        Version: !GetAtt WebLaunchTemplate.LatestVersionNumber
+      MaxSize: 10
+      MinSize: 1
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupMinSize
+            - GroupMaxSize
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-WebContentsASG
+          PropagateAtLaunch: true
+        - Key: aws-exam-resource
+          Value: true
+          PropagateAtLaunch: true
+      TargetGroupARNs:
+        - !Ref ContentsTargetGroup
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetWeb02
+        - !Ref PrivateSubnetWeb03
+
+  WebManageASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${AWS::StackName}-WebManageAutoScalingGroup
+      DesiredCapacity: 1
+      HealthCheckType: ELB
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebLaunchTemplate
+        Version: !GetAtt WebLaunchTemplate.LatestVersionNumber
+      MaxSize: 1
+      MinSize: 1
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupMinSize
+            - GroupMaxSize
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-WebManageASG
+          PropagateAtLaunch: true
+        - Key: aws-exam-resource
+          Value: true
+          PropagateAtLaunch: true
+      TargetGroupARNs:
+        - !Ref ManageTargetGroup
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetWeb01
+
+  ScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebManageASG
+      ScalingAdjustment: 1
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 1
+      Statistic: Average
+      Threshold: "10"
+      AlarmDescription:
+        Alarm if CPU too high or metric disappears indicating instance
+        is down
+      Period: "60"
+      AlarmActions:
+        - !Ref ScaleOutPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value:
+            Ref: WebManageASG
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+Outputs:
+  WebLaunchTemplate:
+    Value: !Ref WebLaunchTemplate
+  WebContentsASG:
+    Value: !Ref WebContentsASG
+  WebManageASG:
+    Value: !Ref WebManageASG

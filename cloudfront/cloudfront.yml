@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Resources:
+  CloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-CloudfrontDistribution
+        - Key: aws-exam-resource
+          Value: true
+      DistributionConfig:
+        Aliases:
+          - your CNAME domain
+        DefaultCacheBehavior:
+          TargetOriginId: 1
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          ViewerProtocolPolicy: redirect-to-https
+        CacheBehaviors:
+          - TargetOriginId: 2
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            PathPattern: /manage
+            ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        Origins:
+          - DomainName: your ALB CNAME domain
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+            Id: 1
+          - DomainName: your ALB CNAME domain
+            OriginPath: /manage
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+            Id: 2
+        ViewerCertificate:
+          AcmCertificateArn: your certificate at US-east
+          SslSupportMethod: sni-only
+
+Outputs:
+  CloudfrontDomainName:
+    Value: !GetAtt CloudfrontDistribution.DomainName

@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Resources:
+  Certification:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: "*.00226.engineed-exam.com"
+      DomainValidationOptions:
+        - DomainName: "*.00226.engineed-exam.com"
+          HostedZoneId: Z06032642H09VFHP20FZA
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-certification
+        - Key: aws-exam-resource
+          Value: true
+      ValidationMethod: DNS
+
+Outputs:
+  Certification:
+    Value: !Ref Certification

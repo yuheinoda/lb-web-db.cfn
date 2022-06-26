@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc
+        - Key: aws-exam-resource
+          Value: true
+
+Outputs:
+  VPCCidr:
+    Value: !GetAtt VPC.CidrBlock
+  VPCId:
+    Value: !Ref VPC

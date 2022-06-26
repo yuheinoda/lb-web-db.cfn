@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  VPCId:
+    Type: String
+
+Resources:
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Sub 10.0.10.0/24
+      AvailabilityZone: ap-northeast-1a
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-subnet-01
+        - Key: aws-exam-resource
+          Value: true
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Sub 10.0.20.0/24
+      AvailabilityZone: ap-northeast-1c
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-subnet-02
+        - Key: aws-exam-resource
+          Value: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-igw
+        - Key: aws-exam-resource
+          Value: true
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPCId
+      InternetGatewayId: !Ref InternetGateway
+
+  NatGateway01:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: eipalloc-07a2e3114d89a2703
+      SubnetId: !Ref PublicSubnet01
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-ngw-01
+        - Key: aws-exam-resource
+          Value: true
+  NatGateway02:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: eipalloc-03334860949b0bffb
+      SubnetId: !Ref PublicSubnet02
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-ngw-02
+        - Key: aws-exam-resource
+          Value: true
+
+  # ルートテーブル
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: AttachInternetGateway
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-rt
+        - Key: aws-exam-resource
+          Value: true
+
+  # サブネットとルートテーブルの関連付け
+  PublicRouteAssoc01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet01
+  PublicRouteAssoc02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet02
+  # パブリックサブネット用のルート定義 (パブリックサブネット->InternetGateway)
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+Outputs:
+  PublicSubnet01:
+    Value: !Ref PublicSubnet01
+  PublicSubnet02:
+    Value: !Ref PublicSubnet02
+  NatGateway01:
+    Value: !Ref NatGateway01
+  NatGateway02:
+    Value: !Ref NatGateway02

@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  ContentsALBDNSName:
+    Type: String
+  ContentsALBCanonicalHostedZoneID:
+    Type: String
+  CloudfrontDomainName:
+    Type: String
+
+Resources:
+  DNSForALB:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: your hostzone ID
+      Comment: DNS for ALB
+      RecordSets:
+        - Name: your ALB CNAME domain
+          Type: A
+          AliasTarget:
+            DNSName: !Ref ContentsALBDNSName
+            HostedZoneId: !Ref ContentsALBCanonicalHostedZoneID
+
+  DNSForCloudfront:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: your hostzone ID
+      Comment: DNS for Cloudfront
+      RecordSets:
+        - Name: your CNAME domain
+          Type: A
+          AliasTarget:
+            DNSName: !Ref CloudfrontDomainName
+            HostedZoneId: Z2FDTNDATAQYW2

@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+Parameters:
+  VPCId:
+    Type: String
+  NatGateway01:
+    Type: String
+  NatGateway02:
+    Type: String
+
+Resources:
+  PrivateSubnetWeb01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.30.0/24
+      AvailabilityZone: ap-northeast-1a
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-subnet-web01
+        - Key: aws-exam-resource
+          Value: true
+  PrivateSubnetWeb02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.40.0/24
+      AvailabilityZone: ap-northeast-1a
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-subnet-web02
+        - Key: aws-exam-resource
+          Value: true
+  PrivateSubnetWeb03:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.50.0/24
+      AvailabilityZone: ap-northeast-1c
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-subnet-web03
+        - Key: aws-exam-resource
+          Value: true
+  PrivateSubnetDB01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.60.0/24
+      AvailabilityZone: ap-northeast-1a
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-subnet-DB01
+        - Key: aws-exam-resource
+          Value: true
+  PrivateSubnetDB02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.70.0/24
+      AvailabilityZone: ap-northeast-1c
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-subnet-DB02
+        - Key: aws-exam-resource
+          Value: true
+
+  # ルートテーブル
+  PrivateRouteTableWeb01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-rt-web01
+        - Key: aws-exam-resource
+          Value: true
+  PrivateRouteTableWeb02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-rt-web02
+        - Key: aws-exam-resource
+          Value: true
+  PrivateRouteTableWeb03:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-rt-web03
+        - Key: aws-exam-resource
+          Value: true
+  PrivateRouteTableDB01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-rt-db01
+        - Key: aws-exam-resource
+          Value: true
+  PrivateRouteTableDB02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-rt-db02
+        - Key: aws-exam-resource
+          Value: true
+  # サブネットとルートテーブルの関連付け
+  PrivateRouteAssoc01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb01
+      SubnetId: !Ref PrivateSubnetWeb01
+  PrivateRouteAssoc02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb02
+      SubnetId: !Ref PrivateSubnetWeb02
+  PrivateRouteAssoc03:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb03
+      SubnetId: !Ref PrivateSubnetWeb03
+  PrivateRouteAssoc04:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableDB01
+      SubnetId: !Ref PrivateSubnetDB01
+  PrivateRouteAssoc05:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableDB02
+      SubnetId: !Ref PrivateSubnetDB02
+  # PrivateSubnetWeb01用のルート定義 (プライベートサブネット->NATGateway)
+  PrivateRoute01:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb01
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway01
+  # PrivateSubnetWeb02用のルート定義 (プライベートサブネット->NATGateway)
+  PrivateRoute02:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb02
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway01
+  # PrivateSubnetWeb03用のルート定義 (プライベートサブネット->NATGateway)
+  PrivateRoute03:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableWeb03
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway02
+
+Outputs:
+  PrivateSubnetWeb01:
+    Value: !Ref PrivateSubnetWeb01
+  PrivateSubnetWeb02:
+    Value: !Ref PrivateSubnetWeb02
+  PrivateSubnetWeb03:
+    Value: !Ref PrivateSubnetWeb03
+  PrivateSubnetDB01:
+    Value: !Ref PrivateSubnetDB01
+  PrivateSubnetDB02:
+    Value: !Ref PrivateSubnetDB02

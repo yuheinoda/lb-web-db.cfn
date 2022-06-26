@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: nest stack
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Template"
+        Parameters:
+          - TemplateVPC
+          - TemplatePublicSubnet
+          - TemplatePrivateSubnet
+          - TemplateALB
+          - TemplateAutoScaling
+          - TemplateSG
+          - TemplateRDS
+          - TemplateRoute53
+          - TemplateCertification
+          - TemplateCloudfront
+      - Label:
+          default: "Aurora Configuration"
+        Parameters:
+          - DatabaseName
+          - MasterUsername
+          - MasterUserPassword
+    ParameterLabels:
+      DatabaseName:
+        default: "Enter Database Name"
+      MasterUsername:
+        default: "Enter MasterUsername Name"
+      MasterUserPassword:
+        default: "Enter MasterUserPassword"
+
+Parameters:
+  TemplateVPC:
+    Description: VPC template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/vpc/vpc.yml
+
+  TemplatePublicSubnet:
+    Description: PublicSubnet template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/subnet/public/subnet.yml
+
+  TemplatePrivateSubnet:
+    Description: PrivateSubnet template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/subnet/private/subnet.yml
+
+  TemplateALB:
+    Description: ALB template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/ec2/alb.yml
+
+  TemplateAutoScaling:
+    Description: AutoScaling template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/ec2/autoscaling.yml
+
+  TemplateSG:
+    Description: SG template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/ec2/sg.yml
+
+  TemplateRDS:
+    Description: RDS template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/rds/rds.yml
+
+  TemplateRoute53:
+    Description: Route53 template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/route53/record.yml
+
+  TemplateCertification:
+    Description: Certification template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/cert/certification.yml
+
+  TemplateCloudfront:
+    Description: Cloudfront template Object URL
+    Type: String
+    Default: https://exam-cfn-resource.s3.ap-northeast-1.amazonaws.com/cloudfront/cloudfront.yml
+
+  DatabaseName:
+    Description: Route53 template Object URL
+    Type: String
+    Default: hogehogehoge
+
+  MasterUsername:
+    Description: Route53 template Object URL
+    Type: String
+    Default: hogehogehoge
+
+  MasterUserPassword:
+    Description: Route53 template Object URL
+    Type: String
+    Default: hogehogehoge
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateVPC
+
+  PrivateSubnet:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplatePrivateSubnet
+      Parameters:
+        VPCId: !GetAtt VPC.Outputs.VPCId
+        NatGateway01: !GetAtt PublicSubnet.Outputs.NatGateway01
+        NatGateway02: !GetAtt PublicSubnet.Outputs.NatGateway02
+
+  PublicSubnet:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplatePublicSubnet
+      Parameters:
+        VPCId: !GetAtt VPC.Outputs.VPCId
+
+  ALB:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateALB
+      Parameters:
+        VPCId: !GetAtt VPC.Outputs.VPCId
+        PublicSubnet01: !GetAtt PublicSubnet.Outputs.PublicSubnet01
+        PublicSubnet02: !GetAtt PublicSubnet.Outputs.PublicSubnet02
+        ALBSecurityGroup: !GetAtt SecurityGroup.Outputs.ALBSecurityGroup
+        Certification: !GetAtt Certification.Outputs.Certification
+
+  SecurityGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateSG
+      Parameters:
+        VPCId: !GetAtt VPC.Outputs.VPCId
+
+  AutoScaling:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateAutoScaling
+      Parameters:
+        WebSecurityGroup: !GetAtt SecurityGroup.Outputs.WebSecurityGroup
+        PrivateSubnetWeb01: !GetAtt PrivateSubnet.Outputs.PrivateSubnetWeb01
+        PrivateSubnetWeb02: !GetAtt PrivateSubnet.Outputs.PrivateSubnetWeb02
+        PrivateSubnetWeb03: !GetAtt PrivateSubnet.Outputs.PrivateSubnetWeb03
+        ContentsTargetGroup: !GetAtt ALB.Outputs.ContentsTargetGroup
+        ManageTargetGroup: !GetAtt ALB.Outputs.ManageTargetGroup
+        MasterUsername: !Ref MasterUsername
+        MasterUserPassword: !Ref MasterUserPassword
+        DBHost: !GetAtt RDS.Outputs.DBHost
+
+  Record:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateRoute53
+      Parameters:
+        ContentsALBDNSName: !GetAtt ALB.Outputs.ContentsALBDNSName
+        ContentsALBCanonicalHostedZoneID: !GetAtt ALB.Outputs.ContentsALBCanonicalHostedZoneID
+        CloudfrontDomainName: !GetAtt Cloudfront.Outputs.CloudfrontDomainName
+
+  Certification:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateCertification
+
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateRDS
+      Parameters:
+        VPCId: !GetAtt VPC.Outputs.VPCId
+        DBSecurityGroup: !GetAtt SecurityGroup.Outputs.DBSecurityGroup
+        PrivateSubnetDB01: !GetAtt PrivateSubnet.Outputs.PrivateSubnetDB01
+        PrivateSubnetDB02: !GetAtt PrivateSubnet.Outputs.PrivateSubnetDB02
+        DatabaseName: !Ref DatabaseName
+        MasterUsername: !Ref MasterUsername
+        MasterUserPassword: !Ref MasterUserPassword
+
+  Cloudfront:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref TemplateCloudfront

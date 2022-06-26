@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  VPCId:
+    Type: String
+
+Resources:
+  # SG for ALB
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SecurityGroup-for-ALB
+      GroupName: SecurityGroup-for-ALB
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-ALB-SG
+        - Key: aws-exam-resource
+          Value: true
+
+  ALBSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+      GroupId: !GetAtt ALBSecurityGroup.GroupId
+
+  # SG for Web
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SecurityGroup-for-web
+      GroupName: SecurityGroup-for-web
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Web-SG
+        - Key: aws-exam-resource
+          Value: true
+
+  WebSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+      GroupId: !GetAtt WebSecurityGroup.GroupId
+
+  # SG for DB
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SecurityGroup-for-db
+      GroupName: SecurityGroup-for-db
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-DB-SG
+        - Key: aws-exam-resource
+          Value: true
+
+  DBSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref WebSecurityGroup
+      GroupId: !GetAtt DBSecurityGroup.GroupId
+
+Outputs:
+  ALBSecurityGroup:
+    Value: !Ref ALBSecurityGroup
+  WebSecurityGroup:
+    Value: !Ref WebSecurityGroup
+  DBSecurityGroup:
+    Value: !Ref DBSecurityGroup
